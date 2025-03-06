@@ -21,7 +21,6 @@ use OxidEsales\Eshop\Application\Model\DeliveryList;
 use OxidEsales\Eshop\Core\UtilsView;
 use OxidEsales\EshopCommunity\Core\Exception\SystemComponentException;
 use TopConcepts\Klarna\Controller\Admin\KlarnaShipping;
-use TopConcepts\Klarna\Core\Exception\KlarnaConfigException;
 use TopConcepts\Klarna\Model\EmdPayload\KlarnaPassThrough;
 use TopConcepts\Klarna\Model\KlarnaEMD;
 use TopConcepts\Klarna\Model\KlarnaUser;
@@ -419,33 +418,26 @@ class KlarnaOrder extends BaseModel
         $activeCheckbox = $this->getAdditionalCheckbox();
 
         switch ($activeCheckbox) {
-            case 0:
-                return null;
-                break;
             case 1:
                 return [
                     'text' => Registry::getLang()->translateString('TCKLARNA_CREATE_USER_ACCOUNT'),
                     'checked' => false,
                     'required' => false,
                 ];
-                break;
             case 2:
                 return [
                     'text' => Registry::getLang()->translateString('TCKLARNA_SUBSCRIBE_TO_NEWSLETTER'),
                     'checked' => false,
                     'required' => false,
                 ];
-                break;
             case 3:
                 return [
                     'text' => Registry::getLang()->translateString('TCKLARNA_CREATE_USER_ACCOUNT_AND_SUBSCRIBE'),
                     'checked' => false,
                     'required' => false,
                 ];
-                break;
             default:
                 return null;
-                break;
         }
     }
 

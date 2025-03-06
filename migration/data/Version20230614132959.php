@@ -6,11 +6,6 @@ namespace TopConcepts\Klarna\Migrations;
 
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
-use OxidEsales\Eshop\Core\Field;
-use OxidEsales\EshopCommunity\Core\Registry;
-use TopConcepts\Klarna\Core\KlarnaPaymentTypes;
-use OxidEsales\Eshop\Core\Model\BaseModel;
-
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
@@ -22,85 +17,6 @@ final class Version20230614132959 extends AbstractMigration
 
         $this->extendDbTables($schema);
         $this->addAlterTables($schema);
-
-        $this->addKlarnaPaymentsMethods();
-    }
-
-    /**
-     * Add Klarna payment options
-     * @throws \Exception
-     */
-    protected function addKlarnaPaymentsMethods() : void
-    {
-        $oPayment = oxNew(BaseModel::class);
-        $oPayment->init('oxpayments');
-
-        $oPayment->load('oxidinvoice');
-        $de_prefix = $oPayment->getFieldData('oxdesc') === 'Rechnung' ? 0 : 1;
-        $en_prefix = $de_prefix === 1 ? 0 : 1;
-
-        $newPayments = array(
-            KlarnaPaymentTypes::KLARNA_PAYMENT_PAY_LATER_ID =>
-                array($de_prefix => 'Klarna Rechnung', $en_prefix => 'Klarna Pay Later'),
-            KlarnaPaymentTypes::KLARNA_PAYMENT_SLICE_IT_ID  =>
-                array($de_prefix => 'Klarna Ratenkauf', $en_prefix => 'Klarna Financing'),
-            KlarnaPaymentTypes::KLARNA_PAYMENT_PAY_NOW =>
-                array($de_prefix => 'Klarna Sofort bezahlen', $en_prefix => 'Klarna Pay Now'),
-            KlarnaPaymentTypes::KLARNA_DIRECTDEBIT =>
-                array($de_prefix => 'Klarna Lastschrift', $en_prefix => 'Klarna Direct Debit'),
-            KlarnaPaymentTypes::KLARNA_CARD =>
-                array($de_prefix => 'Klarna Kreditkarte', $en_prefix => 'Klarna Card'),
-            KlarnaPaymentTypes::KLARNA_SOFORT =>
-                array($de_prefix => 'Klarna Sofortüberweisung', $en_prefix => 'Klarna Online Bank Transfer'),
-        );
-
-        $sort   = -350;
-        $aLangs = Registry::getLang()->getLanguageArray();
-
-        if ($aLangs) {
-            foreach ($newPayments as $oxid => $aTitle) {
-                /** @var Payment $oPayment */
-                $oPayment = oxNew(BaseModel::class);
-                $oPayment->init('oxpayments');
-
-                $oPayment->load($oxid);
-                if ($oPayment->isLoaded()) {
-                    $oPayment->oxpayments__oxactive = new Field(1, Field::T_RAW);
-                    $oPayment->save();
-
-                    continue;
-                }
-                $oPayment->setId($oxid);
-                $oPayment->oxpayments__oxactive      = new Field(1, Field::T_RAW);
-                $oPayment->oxpayments__oxaddsum      = new Field(0, Field::T_RAW);
-                $oPayment->oxpayments__oxaddsumtype  = new Field('abs', Field::T_RAW);
-                $oPayment->oxpayments__oxaddsumrules = new Field('31', Field::T_RAW);
-                $oPayment->oxpayments__oxfromboni    = new Field('0', Field::T_RAW);
-                $oPayment->oxpayments__oxfromamount  = new Field('0', Field::T_RAW);
-                $oPayment->oxpayments__oxtoamount    = new Field('1000000', Field::T_RAW);
-                $oPayment->oxpayments__oxchecked     = new Field(0, Field::T_RAW);
-                $oPayment->oxpayments__oxsort        = new Field(strval($sort), Field::T_RAW);
-                $oPayment->oxpayments__oxtspaymentid = new Field('', Field::T_RAW);
-
-                // set multi language fields
-                foreach ($aLangs as $oLang) {
-                    $sTag                                     = Registry::getLang()->getLanguageTag($oLang->id);
-                    $oPayment->{'oxpayments__oxdesc' . $sTag} = new Field($aTitle[$oLang->id], Field::T_RAW);
-                }
-
-                $oPayment->save();
-                $sort += 1;
-            }
-        }
-
-        $updateOxPayments =
-            array(
-                "UPDATE `oxpayments` SET `TCKLARNA_PAYMENTOPTION`='card' WHERE `oxid`='oxidcreditcard';",
-                "UPDATE `oxpayments` SET `TCKLARNA_PAYMENTOPTION`='direct banking' WHERE `oxid`='oxiddebitnote';",
-            );
-        foreach ($updateOxPayments as $sQuery) {
-            $this->addSql($sQuery);
-        }
     }
 
     /**
@@ -177,6 +93,15 @@ final class Version20230614132959 extends AbstractMigration
                 ENGINE = InnoDB
                 DEFAULT CHARSET = utf8;
             ");
+        }
+
+        $updateOxPayments =
+            array(
+                "UPDATE `oxpayments` SET `TCKLARNA_PAYMENTOPTION`='card' WHERE `oxid`='oxidcreditcard';",
+                "UPDATE `oxpayments` SET `TCKLARNA_PAYMENTOPTION`='direct banking' WHERE `oxid`='oxiddebitnote';",
+            );
+        foreach ($updateOxPayments as $sQuery) {
+            $this->addSql($sQuery);
         }
     }
 

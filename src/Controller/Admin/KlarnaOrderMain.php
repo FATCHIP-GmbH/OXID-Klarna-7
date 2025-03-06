@@ -6,7 +6,6 @@ namespace TopConcepts\Klarna\Controller\Admin;
 use TopConcepts\Klarna\Core\KlarnaClientBase;
 use TopConcepts\Klarna\Core\KlarnaOrderManagementClient;
 use TopConcepts\Klarna\Core\KlarnaUtils;
-use TopConcepts\Klarna\Core\Exception\KlarnaClientException;
 use TopConcepts\Klarna\Core\Exception\KlarnaOrderNotFoundException;
 use TopConcepts\Klarna\Core\Exception\KlarnaWrongCredentialsException;
 use OxidEsales\Eshop\Application\Model\Order;
