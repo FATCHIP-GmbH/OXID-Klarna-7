@@ -19,6 +19,8 @@ namespace TopConcepts\Klarna\Core;
 
 
 use OxidEsales\Eshop\Application\Controller\Admin\ShopConfiguration;
+use OxidEsales\Eshop\Core\Field;
+use OxidEsales\Eshop\Core\Model\BaseModel;
 use OxidEsales\EshopCommunity\Internal\Container\ContainerFactory;
 use OxidEsales\EshopCommunity\Internal\Framework\Database\QueryBuilderFactoryInterface;
 use OxidEsales\Eshop\Core\DbMetaDataHandler;
@@ -70,6 +72,8 @@ class KlarnaInstaller extends ShopConfiguration
     {
         $instance = self::getInstance();
 
+        $instance->addKlarnaPaymentsMethods();
+
         $instance->checkAndUpdate();
         $instance->executeModuleMigrations();
 
@@ -91,6 +95,70 @@ class KlarnaInstaller extends ShopConfiguration
 
         if ($needsUpdate) {
             $migrations->execute('migrations:migrate', 'tcklarna');
+        }
+    }
+
+    protected function addKlarnaPaymentsMethods() : void
+    {
+        $oPayment = oxNew(BaseModel::class);
+        $oPayment->init('oxpayments');
+
+        $oPayment->load('oxidinvoice');
+        $de_prefix = $oPayment->getFieldData('oxdesc') === 'Rechnung' ? 0 : 1;
+        $en_prefix = $de_prefix === 1 ? 0 : 1;
+
+        $newPayments = array(
+            KlarnaPaymentTypes::KLARNA_PAYMENT_PAY_LATER_ID =>
+                array($de_prefix => 'Klarna Rechnung', $en_prefix => 'Klarna Pay Later'),
+            KlarnaPaymentTypes::KLARNA_PAYMENT_SLICE_IT_ID  =>
+                array($de_prefix => 'Klarna Ratenkauf', $en_prefix => 'Klarna Financing'),
+            KlarnaPaymentTypes::KLARNA_PAYMENT_PAY_NOW =>
+                array($de_prefix => 'Klarna Sofort bezahlen', $en_prefix => 'Klarna Pay Now'),
+            KlarnaPaymentTypes::KLARNA_DIRECTDEBIT =>
+                array($de_prefix => 'Klarna Lastschrift', $en_prefix => 'Klarna Direct Debit'),
+            KlarnaPaymentTypes::KLARNA_CARD =>
+                array($de_prefix => 'Klarna Kreditkarte', $en_prefix => 'Klarna Card'),
+            KlarnaPaymentTypes::KLARNA_SOFORT =>
+                array($de_prefix => 'Klarna Sofortüberweisung', $en_prefix => 'Klarna Online Bank Transfer'),
+        );
+
+        $sort   = -350;
+        $aLangs = Registry::getLang()->getLanguageArray();
+
+        if ($aLangs) {
+            foreach ($newPayments as $oxid => $aTitle) {
+                /** @var Payment $oPayment */
+                $oPayment = oxNew(BaseModel::class);
+                $oPayment->init('oxpayments');
+
+                $oPayment->load($oxid);
+                if ($oPayment->isLoaded()) {
+                    $oPayment->oxpayments__oxactive = new Field(1, Field::T_RAW);
+                    $oPayment->save();
+
+                    continue;
+                }
+                $oPayment->setId($oxid);
+                $oPayment->oxpayments__oxactive      = new Field(1, Field::T_RAW);
+                $oPayment->oxpayments__oxaddsum      = new Field(0, Field::T_RAW);
+                $oPayment->oxpayments__oxaddsumtype  = new Field('abs', Field::T_RAW);
+                $oPayment->oxpayments__oxaddsumrules = new Field('31', Field::T_RAW);
+                $oPayment->oxpayments__oxfromboni    = new Field('0', Field::T_RAW);
+                $oPayment->oxpayments__oxfromamount  = new Field('0', Field::T_RAW);
+                $oPayment->oxpayments__oxtoamount    = new Field('1000000', Field::T_RAW);
+                $oPayment->oxpayments__oxchecked     = new Field(0, Field::T_RAW);
+                $oPayment->oxpayments__oxsort        = new Field(strval($sort), Field::T_RAW);
+                $oPayment->oxpayments__oxtspaymentid = new Field('', Field::T_RAW);
+
+                // set multi language fields
+                foreach ($aLangs as $oLang) {
+                    $sTag                                     = Registry::getLang()->getLanguageTag($oLang->id);
+                    $oPayment->{'oxpayments__oxdesc' . $sTag} = new Field($aTitle[$oLang->id], Field::T_RAW);
+                }
+
+                $oPayment->save();
+                $sort += 1;
+            }
         }
     }
 

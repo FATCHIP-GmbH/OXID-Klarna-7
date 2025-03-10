@@ -6,103 +6,18 @@ namespace TopConcepts\Klarna\Migrations;
 
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
-use OxidEsales\Eshop\Core\Field;
-use OxidEsales\EshopCommunity\Core\Registry;
-use TopConcepts\Klarna\Core\KlarnaPaymentTypes;
-use OxidEsales\Eshop\Core\Model\BaseModel;
-use OxidEsales\Eshop\Core\DbMetaDataHandler;
 
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20230323131941 extends AbstractMigration
+final class Version20250306155415 extends AbstractMigration
 {
     public function up(Schema $schema) : void
     {
         $this->connection->getDatabasePlatform()->registerDoctrineTypeMapping('enum', 'string');
 
-        //deactivate old payments. Removing them would cause issues when displaying old orders.
-        $oldPaymentIDs = [
-            "klarna_pay_now",
-            "klarna_directdebit",
-            "klarna_card",
-            "klarna_sofort",
-            "klarna_pay_later",
-            "klarna_slice_it",
-        ];
-
-        foreach ($oldPaymentIDs as $oldPaymentID) {
-            $this->addSql("UPDATE `oxpayments` SET OXACTIVE = 0 WHERE OXID = :oxid",["oxid" => $oldPaymentID]);
-        }
-
         $this->extendDbTables($schema);
         $this->addAlterTables($schema);
-
-        $this->addKlarnaPaymentsMethods();
-    }
-
-    /**
-     * Add Klarna payment options
-     * @throws \Exception
-     */
-    protected function addKlarnaPaymentsMethods() : void
-    {
-        $oPayment = oxNew(BaseModel::class);
-        $oPayment->init('oxpayments');
-
-        $oPayment->load('oxidinvoice');
-        $de_prefix = $oPayment->getFieldData('oxdesc') === 'Rechnung' ? 0 : 1;
-        $en_prefix = $de_prefix === 1 ? 0 : 1;
-
-        $newPayments = array();
-
-        $sort   = -350;
-        $aLangs = Registry::getLang()->getLanguageArray();
-
-        if ($aLangs) {
-            foreach ($newPayments as $oxid => $aTitle) {
-                /** @var Payment $oPayment */
-                $oPayment = oxNew(BaseModel::class);
-                $oPayment->init('oxpayments');
-
-                $oPayment->load($oxid);
-                if ($oPayment->isLoaded()) {
-                    $oPayment->oxpayments__oxactive = new Field(1, Field::T_RAW);
-                    $oPayment->save();
-
-                    continue;
-                }
-                $oPayment->setId($oxid);
-                $oPayment->oxpayments__oxactive      = new Field(1, Field::T_RAW);
-                $oPayment->oxpayments__oxaddsum      = new Field(0, Field::T_RAW);
-                $oPayment->oxpayments__oxaddsumtype  = new Field('abs', Field::T_RAW);
-                $oPayment->oxpayments__oxaddsumrules = new Field('31', Field::T_RAW);
-                $oPayment->oxpayments__oxfromboni    = new Field('0', Field::T_RAW);
-                $oPayment->oxpayments__oxfromamount  = new Field('0', Field::T_RAW);
-                $oPayment->oxpayments__oxtoamount    = new Field('1000000', Field::T_RAW);
-                $oPayment->oxpayments__oxchecked     = new Field(0, Field::T_RAW);
-                $oPayment->oxpayments__oxsort        = new Field(strval($sort), Field::T_RAW);
-                $oPayment->oxpayments__oxtspaymentid = new Field('', Field::T_RAW);
-
-                // set multi language fields
-                foreach ($aLangs as $oLang) {
-                    $sTag                                     = Registry::getLang()->getLanguageTag($oLang->id);
-                    $oPayment->{'oxpayments__oxdesc' . $sTag} = new Field($aTitle[$oLang->id], Field::T_RAW);
-                }
-
-                $oPayment->save();
-                $sort += 1;
-            }
-        }
-
-        $updateOxPayments =
-            array(
-                "UPDATE `oxpayments` SET `TCKLARNA_PAYMENTOPTION`='card' WHERE `oxid`='oxidcreditcard';",
-                "UPDATE `oxpayments` SET `TCKLARNA_PAYMENTOPTION`='direct banking' WHERE `oxid`='oxiddebitnote';",
-            );
-        foreach ($updateOxPayments as $sQuery) {
-            $this->addSql($sQuery);
-        }
     }
 
     /**
@@ -117,19 +32,16 @@ final class Version20230323131941 extends AbstractMigration
                       `OXID`          CHAR(32)
                                       CHARACTER SET latin1 COLLATE latin1_general_ci
                                    NOT NULL DEFAULT '',
-                      `TCKLARNA_ORDERID` VARCHAR(128) 
-                                    CHARACTER SET utf8 
-                                    DEFAULT '' NOT NULL,
+                      `TCKLARNA_ORDERID` VARCHAR(128) CHARACTER SET utf8 DEFAULT '' NOT NULL,
                       `OXSHOPID`      CHAR(32)
                                       CHARACTER SET latin1 COLLATE latin1_general_ci
                                    NOT NULL DEFAULT '',
-                      `TCKLARNA_MID` VARCHAR(50) 
-                                    CHARACTER SET utf8 NOT NULL,
+                      `TCKLARNA_MID` VARCHAR(50) CHARACTER SET utf8 NOT NULL,
                       `TCKLARNA_STATUSCODE` VARCHAR(16) CHARACTER SET utf8 NOT NULL,
+                      `TCKLARNA_URL` VARCHAR(256) CHARACTER SET utf8,
                       `TCKLARNA_METHOD`      VARCHAR(128)
                                       CHARACTER SET utf8
                                    NOT NULL DEFAULT '',
-                      `TCKLARNA_URL` VARCHAR(256) CHARACTER SET utf8,
                       `TCKLARNA_REQUESTRAW`  TEXT CHARACTER SET utf8
                                    NOT NULL,
                       `TCKLARNA_RESPONSERAW` TEXT CHARACTER SET utf8
@@ -186,6 +98,15 @@ final class Version20230323131941 extends AbstractMigration
                 ENGINE = InnoDB
                 DEFAULT CHARSET = utf8;
             ");
+        }
+
+        $updateOxPayments =
+            array(
+                "UPDATE `oxpayments` SET `TCKLARNA_PAYMENTOPTION`='card' WHERE `oxid`='oxidcreditcard';",
+                "UPDATE `oxpayments` SET `TCKLARNA_PAYMENTOPTION`='direct banking' WHERE `oxid`='oxiddebitnote';",
+            );
+        foreach ($updateOxPayments as $sQuery) {
+            $this->addSql($sQuery);
         }
     }
 

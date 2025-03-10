@@ -19,7 +19,6 @@ namespace TopConcepts\Klarna\Component;
 
 
 use TopConcepts\Klarna\Core\KlarnaPayment;
-use TopConcepts\Klarna\Core\KlarnaUtils;
 use OxidEsales\Eshop\Core\Config;
 use OxidEsales\Eshop\Core\Request;
 use OxidEsales\Eshop\Core\ViewConfig;
